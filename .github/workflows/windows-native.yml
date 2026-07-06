@@ -1,0 +1,42 @@
+name: windows-native-build
+
+on:
+  push:
+    branches: [ "windows-native" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build dmp.exe
+        run: go build -ldflags "-s -w" -o dmp.exe
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item dmp.exe package\dmp.exe
+          Copy-Item docs\windows-native.md package\WINDOWS.md
+          Compress-Archive -Path package\* -DestinationPath dmp-windows-amd64.zip -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dmp-windows-amd64
+          path: dmp-windows-amd64.zip
+          if-no-files-found: error
+          retention-days: 30
